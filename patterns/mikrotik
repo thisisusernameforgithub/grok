@@ -1,82 +1,110 @@
-MIKROTIK_DATE \b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b\/(?:(?:0[1-9])|(?:[12][0-9])|(?:3[01])|[1-9])  
-MIKROTIK_TIME (?:2[0123]|[01]?[0-9]):(?:[0-5][0-9]):(?:(?:[0-5]?[0-9]|60)(?:[:.,][0-9]+)?)  
-MIKROTIK_TOPIC wireless|info|ipsec|interface|error|dhcp|system|account|critical  
-MIKROTIK_FAILED_PROPOSAL failed\ to\ get\ valid\ proposal|failed\ to\ pre\-process\ ph1\ packet|phase1\ negotiation\ failed|no\ suitable\ proposal\ found  
-MIKROTIK_PEER_NOT_COMPLIANT Unity\ mode\ config\ request\ but\ the\ peer\ did\ not\ declare\ itself\ as\ \ unity\ compliant  
-MIKROTIK_PACKET_RETRANSMISSION packet\ is\ retransmitted  
-MIKROTIK_TRAFFIC_FLOW traffic\ flow\ target\ removed  
-MIKROTIK_ACQUIRED_IP assigned|acquired  
-MIKROTIK_RELEASED_IP released|releasing address|deassigned  
-MIKROTIK_DISCO_REASON extensive\ data\ loss|group\ key\ exchange\ timeout|received\ deauth:\ unspecified\ \(1\)|received\ disassoc:\ sending station\ leaving\ \(8\)|ok|received\ deauth:\ sending\ station\ leaving\ \(3\)  
-MIKROTIK_WIFI_STATE reassociating 
+# SYSTEM
+MIKROTIKLOGINOUT ^user %{USERNAME:[target][user][name]} (?<[event][name]>logged (?:out|in)) from %{IP:[source][ip]} via %{WORD:[network][application_name]}
+MIKROTIKLOGINOUT2 ^user %{USERNAME:[target][user][name]} (?<[event][name]>logged (?:out|in)) via %{WORD:[network][application_name]}
+MIKROTIKLOGINFAIL ^%{DATA:[event][name]} for user %{USERNAME:[target][user][name]} from %{IP:[source][ip]} via %{WORD:[network][application_name]}
+MIKROTIKLOGINFAIL2 ^%{DATA:[event][name]} for user %{USERNAME:[target][user][name]} via %{WORD:[network][application_name]}
+MIKROTIKRULECHANGE ^user (?:(?<[target][object][type]>ppp secret|address list entry|log action|filter rule|log rule|dhcp server|device|ssh-key|script|new script|hotspot server)\s*(?<[target][object][name]>\S+)?|(?<[target][object][type]>sntp change time))\s+(?<[mikrotik][observer][action]>added\s+dynamically|added|changed|removed|moved)(?:\s+for\s+\{?(?<[source][ip]>[^\}]+)\}?\s+due\s+to\s+rule\s+\{?(?<rule_name>[^\}]+)\}?\s+trigger)?(?:\s+by\s+(?<[source][user][name]>\w[\w\.\-]*))?$
+MIKROTIKSSH (?<[mikrotik][observer][action]>publickey\ accepted)\s+for\s+user:\s+%{USERNAME:[target][user][name]}|public\ key\s+\d+bit\s+(?<[mikrotik][observer][action]>imported),\s+author\s*=\s*%{USERNAME:[source][user][name]}\@%{HOSTNAME:[source][host][name]}
 
-# Notes: ?: => Non-capturing group (http://docs.python.org/howto/regex)
-#  ? => Match zero or one of the preceding
-#  | => Pattern separate - logical OR
-#  - => Literal hyphen
+# INTERFACE
+MIKROTIKLINK ^%{NOTSPACE:[mikrotik][observer][host][interfaces_name]}}\s+(?<[event][name]>link (?:up|down))(?:\s+\(.*\))?$
 
-MTIKBSDSYSLOG  ^<%{POSINT:syslog_pri}>%{SYSLOGTIMESTAMP:syslog_timestamp} %{WORD:log_source} %{GREEDYDATA:syslog_message}
-
-# Firewall Log (No NAT):
-MIKROTIKFIREWALLNONAT %{DATA:LogPrefix} %{DATA:LogChain}: in:%{DATA:src_zone} out:%{DATA:dst_zone}, src-mac %{MAC}, proto %{DATA:proto}, %{IP:src_ip}:%{INT:src_port}->%{IP:dst_ip}:%{INT:dst_port}, len %{INT:length}
-
-# Firewall Log (NAT):
-MIKROTIKFIREWALLNAT %{DATA:LogPrefix} %{DATA:LogChain}: in:%{DATA:src_zone} out:%{DATA:dst_zone}, src-mac %{MAC}, proto %{DATA:proto}, %{IP:src_ip}:%{INT:src_port}->%{IP:dst_ip}:%{INT:dst_port}, NAT \(%{IP:nat_osrc_ip}:%{INT:nat_osrc_port}->%{IP:nat_nsrc_ip}:%{INT:nat_nsrc_port}\)->%{IP:nat_dst_ip}:%{INT:nat_dstport}, len %{INT:length}
-MIKROTIKFIREWALLNAT2 %{DATA:LogPrefix} %{DATA:LogChain}: in:%{DATA:src_zone} out:%{DATA:dst_zone}, proto %{DATA:proto}, %{IP:src_ip}:%{INT:src_port}->%{IP:dst_ip}:%{INT:dst_port}, NAT %{IP:nat_osrc_ip}:%{INT:nat_osrc_port}->\(%{IP:nat_nsrc_ip}:%{INT:nat_nsrc_port}->%{IP:nat_dst_ip}:%{INT:nat_dstport}\), len %{INT:length}
-
-MIKROTIKFIREWALL (?:%{MIKROTIKFIREWALLNAT}|%{MIKROTIKFIREWALLNAT2}|%{MIKROTIKFIREWALLNONAT})
+# FIREWALL
+MIKROTIKFIREWALLMODMACH %{DATA:[target][rule][name]}(?:[-:%{DATA}])? %{GREEDYDATA}: in:%{DATA:[source][content][name]} out:%{DATA:[target][content][name]}, src-mac %{MAC:[source][mac][address]}, proto %{DATA:[network][protocol_name]}, %{IP:[source][ip]}:%{INT:[source][port]}->%{IP:[target][ip][address]}:%{INT:[target][port]}, len %{INT:[network][len]}
+MIKROTIKFIREWALLNAT %{DATA}: in:%{DATA:[source][content][name]} out:%{DATA:[target][content][name]}, src-mac %{MAC:[source][mac][address]}, proto %{DATA:[network][protocol_name]}(?:\s*\((?<[network][flags]>[A-Z,]+)\))?, %{IP:[source][ip]}:%{INT:[source][port]}->%{IP:[target][ip][address]}\:%{INT:[target][port]},(?: NAT \(%{IP:[network][nat][original][source][ip][address]}\:%{INT:[network][nat][original][source][port]}->%{IP:[network][nat][new][source][ip][address]}\:%{INT:[network][nat][new][source][port]}\)->%{IP:[network][nat][target][ip][address]}\:%{INT:[network][nat][target][port]},)? len %{INT:[network][len]}
+MIKROTIKFIREWALLNAT3 %{DATA}: in:%{DATA:[source][content][name]} out:%{DATA:[target][content][name]}, connection-state:%{DATA:[network][nat][connection_state]} src-mac %{MAC:[source][mac][address]}, proto %{WORD:[network][protocol_name]}%{DATA}%{IP:[source][ip]}->%{IP:[target][ip][address]}, len %{INT:[network][len]}
+MIKROTIKFIREWALLNAT2 %{DATA}: in:%{DATA:[source][content][name]} out:%{DATA:[target][content][name]}, proto %{DATA:[network][protocol_name]}(?:\s*\((?<[network][flags]>[A-Z,]+)\))?, %{IP:[source][ip]}:%{INT:[source][port]}->%{IP:[target][ip][address]}:%{INT:[target][port]}, NAT %{IP:[network][nat][original][source][ip][address]}:%{INT:[network][nat][original][source][port]}->\(%{IP:[network][nat][new][source][ip][address]}:%{INT:[network][nat][new][source][port]}->%{IP:[network][nat][target][ip][address]}:%{INT:[network][nat][target][port]}\), len %{INT:[network][len]}
 
 # DNS
-MIKROTIKDNSQUERY  query from %{IP:src_ip}: #%{INT:query_id} %{GREEDYDATA:query}
-MIKROTIKDNSANSWER  done query: #%{INT:query_id} %{GREEDYDATA:query}
+MIKROTIKDNSQUERY query from %{IP:[source][ip]}: #%{INT} %{DATA:[dns][query][name]}\. %{WORD:[dns][query][type_name]}
 
-MIKROTIKDNS (?:%{MIKROTIKDNSANSWER}|%{MIKROTIKDNSQUERY})
+# Web Proxy
+MIKROTIKWEBPROXY %{DATA}: %{IP:[source][ip]} %{WORD:[network][http][request][method]} %{DATA:[network][http][request][url]} action=%{WORD:[mikrotik][observer][action]}(?:\s+cache=%{DATA})?
+MIKROTIKWEBPROXY2 %{IP:[source][ip]} %{WORD:[network][http][request][method]} %{DATA:[network][http][request][url]} action=%{WORD:[mikrotik][observer][action]}(?:\s+cache=%{DATA})?
 
-#WebProxy
-MIKROTIKWEBPROXY web-proxy: %{IP:src_ip} %{WORD:request_type} %{URI:url}
-# action=%{WORD:action}
-# cache=%{WORD:cache}
+# WIRELESS
+MTIKWIFIASSOC %{HOSTNAME:[mikrotik][observer][host][interfaces_name]}: %{MAC:[source][mac_address]} attempts
+MTIKWIFIACL %{HOSTNAME:[mikrotik][observer][host][interfaces_name]}: %{MAC:[source][mac_address]} (?<[event_data][reason]>not in local ACL), by default %{DATA:[mikrotik][observer][action]}
+MTIKWIFIACL2 %{HOSTNAME:[mikrotik][observer][host][interfaces_name]}: %{MAC:[source][mac_address]} (?<[event_data][reason]>in local ACL), %{DATA:[mikrotik][observer][action]}
+MTIKWIFIDEAUTH %{HOSTNAME:[mikrotik][observer][host][interfaces_name]}: %{DATA:[event_data][reason]} %{MAC:[source][mac_address]}, sent %{DATA:[mikrotik][observer][action]}
+MTIKWIFICONN %{MAC:[source][mac_address]}\@%{HOSTNAME:[mikrotik][observer][host][interfaces_name]}[,:]?\s*(?<[mikrotik][observer][action]>\w+)
+MTIKWIFIDISCON2 %{MAC:[source][mac_address]}\@%{HOSTNAME:[mikrotik][observer][host][interfaces_name]}: %{DATA:[mikrotik][observer][action]}, %{GREEDYDATA:[event_data][reason]}\: %{GREEDYDATA:[event_data][description]}
+MTIKWIFIDISCON3 %{MAC:[source][mac_address]}\@%{HOSTNAME:[mikrotik][observer][host][interfaces_name]},?\s*%{DATA:[mikrotik][observer][action]}, %{GREEDYDATA:[event_data][reason]}, %{GREEDYDATA:[event_data][description]}
+MTIKWIFIDISCONN %{MAC:[source][mac_address]}\@%{HOSTNAME:[mikrotik][observer][host][interfaces_name]}: %{DATA:[mikrotik][observer][action]}, %{GREEDYDATA:[event_data][reason]}
+MTIKWIFIDISCON4 %{HOSTNAME:[mikrotik][observer][host][interfaces_name]}: %{DATA:[mikrotik][observer][action]} to %{MAC:[source][mac_address]}
 
-#DHCP
-MIKROTIKDHCP %{DATA:DHCP_zone} %{WORD:action} %{IP:src_ip} (?:from|to) %{MAC:src_mac}
+# HOTSPOT
+MIKROTIKHSPOTSTART ^(?<user>T\-%{MAC:[source][mac_address]}|%{USERNAME})%{SPACE}\(%{IP:[source][ip]}\)\:
+MIKROTIKHSPOTNEWHOST ^%{USERNAME:src_int}\:%{SPACE}(?<[event][name]>new host detected)%{SPACE}%{MAC:[source][mac_address]}\/%{IP:[source][ip]}%{SPACE}by%{SPACE}%{WORD:[network][protocol_name]}%{SPACE}\:%{INT:[source][port]} \-\> %{INT:[target][port]}\:%{INT:[target][port]}$
+MIKROTIKHSPOTLOGINMETHOD ^(?<user_id>T\-%{MAC:[source][mac_address]}|%{USERNAME})%{SPACE}\(%{IP:[source][ip]}\)\:%{SPACE}(?<[event][name]>trying to log in) by %{USERNAME:login_method}$
+MIKROTIKHSPOTLOGIN ^(?<user_id>T\-%{MAC:[source][mac_address]}|%{USERNAME})%{SPACE}\(%{IP:[source][ip]}\)\:%{SPACE}(?<[event][name]>%{USER}%{SPACE}%{WORD})$
+MIKROTIKHSPOTLOGIN2 ^(?<user_id>T\-%{MAC:[source][mac_address]}|%{USERNAME})%{SPACE}\(%{IP:[source][ip]}\)\:%{SPACE}(?<[event][name]>%{USER}%{SPACE}%{WORD:[event][name]})(?:\->|\:)%{SPACE}?%{GREEDYDATA:[event_data][reason]}$
+MIKROTIKHSPOTLOGINFAIL ^(?<user_id>T\-%{MAC:[source][mac_address]}|%{USERNAME})%{SPACE}\(%{IP:[source][ip]}\)\:%{SPACE}(?<[event][name]>login failed)\:%{SPACE}?%{GREEDYDATA:[event_data][reason]}
+MIKROTIKHSPOTPROFILE ^(?<user_id>T\-%{MAC:[source][mac_address]}|%{USERNAME})%{SPACE}\(%{IP:[source][ip]}\)\:%{SPACE}(?<[event][name]>using profile)%{SPACE}?\<?%{USERNAME:ip_profile}?\>?$
+MIKROTIKHSPOTQUEUE ^(?<user_id>T\-%{MAC:[source][mac_address]}|%{USERNAME})%{SPACE}\(%{IP:[source][ip]}\)\:%{SPACE}(?<[event][name]>(?:adding|removing) queue)%{SPACE}?\<%{GREEDYDATA:user_queue}\>$
+MIKROTIKHSPOTQUEUE2 ^(?<user_id>T\-%{MAC:[source][mac_address]}|%{USERNAME})%{SPACE}\(%{IP:[source][ip]}\)\:%{SPACE}(?<[event][name]>(?:removing) queue)$
+MIKROTIKHSPOTIPPOOL ^(?<user_id>T\-%{MAC:[source][mac_address]}|%{USERNAME})%{SPACE}\(%{IP:[source][ip]}\)\:%{SPACE}(?<[event][name]>getting ip address)%{SPACE}(?<crap>from pool)$
 
-# System Login
+# SYSTEM CONFIGURE
+MIKROTIKSNTPCHANGE ^(?<[target][object][type]>sntp change time)
+MIKROTIKDHCPLEASEREMOVED ^(?<[target][object][type]>dhcp lease removed)%{SPACE}(?:by%{SPACE}(?:(?<[target][user][domain]>.*?)\\)?%{USERNAME:[target][user][name]})?
+MIKROTIKDHCPLEASEADDED ^(?<[target][object][type]>dhcp lease added)%{SPACE}(?:by%{SPACE}(?:(?<[target][user][domain]>.*?)\\)?%{USERNAME:[target][user][name]})?
+MIKROTIKDHCPLEASEFAIL ^%{DATA:[source][host][name]}\s+(?<lease>offering lease)\s+%{IP:[target][ip][address]}\s+for\s+%{MAC:[target][mac_address]}\s+(?<[event_data][reason]>without success)$
+MIKROTIKDHCPLEASESUCCESS ^%{DATA:[source][host][name]}\s+(?<[event][name]>assigned|deassigned)\s+%{IP:[target][ip][address]}\s+(?:(?:to|from)\s+%{MAC:[target][mac_address]}|for\s+%{MAC:[target][mac_address]}(?:\s+%{DATA:[target][host][name]})?)$
+MIKROTIKDHCPUNKNOWNSERVER ^dhcp\s+alert\s+on\s+%{DATA:[source][host][interfaces_name]}:\s+(?<[event][name]>discovered unknown dhcp server),\s+mac\s+%{MAC:[target][mac_address]},\s+ip\s+%{IP:[target][ip][address]}$
+MIKROTIKDHCPDECLINES ^%{DATA:[source][host][name]}\s+client\s+%{MAC:[target][mac_address]}\s+(?<decline>declines IP address)\s+%{IP:[target][ip][address]}$
+MIKROTIKDHCPLEASEEXPIRED ^%{DATA:[target][host][name]}\s+on\s+%{DATA:[target][host][interfaces_name]}\s+(?<[mikrotik][observer][action]>lost)\s+IP\s+address\s+%{IP:[target][ip][address]}\s+\-\s+(?<[event_data][reason]>lease expired)$
 
-MIKROTIKLOGINOUT   ^user %{WORD:user_name} (?<action>logged (?:out|in)) from %{IP:src_ip} via %{WORD:app_src}
-MIKROTIKLOGINFAIL  ^%{WORD:action} %{WORD:action_result} for user %{WORD:user_name} from %{IP:src_ip} via %{WORD:app_src}
-MIKROTIKRULECHANGE ^(?<config_change>%{DATA} changed) by %{WORD:user_name}$
+# main
+MIKROTIKLOGIN %{MIKROTIKLOGINOUT}|%{MIKROTIKLOGINOUT2}|%{MIKROTIKLOGINFAIL}|%{MIKROTIKLOGINFAIL2}|%{MIKROTIKRULECHANGE}|%{MIKROTIKSSH}
+MIKROTIKFIREWALL %{MIKROTIKFIREWALLNAT}|%{MIKROTIKFIREWALLNAT2}|%{MIKROTIKFIREWALLNAT3}
+MIKROTIKDHCP %{MIKROTIKDHCPLEASEFAIL}|%{MIKROTIKDHCPLEASESUCCESS}|%{MIKROTIKDHCPUNKNOWNSERVER}|%{MIKROTIKDHCPDECLINES}|%{MIKROTIKDHCPLEASEEXPIRED}
+MIKROTIKINTERFACE %{MIKROTIKLINK}
+MIKROTIKDNS %{MIKROTIKDNSQUERY}
+MTIKWIFI %{MTIKWIFIDISCON2}|%{MTIKWIFIDISCON3}|%{MTIKWIFIDISCONN}|%{MTIKWIFIDISCON4}|%{MTIKWIFICONN}|%{MTIKWIFIASSOC}|%{MTIKWIFIACL}|%{MTIKWIFIACL2}|%{MTIKWIFIDEAUTH}
+MIKROTIKHSPOT %{MIKROTIKHSPOTLOGINMETHOD}|%{MIKROTIKHSPOTIPPOOL}|%{MIKROTIKHSPOTLOGIN}|%{MIKROTIKHSPOTNEWHOST}|%{MIKROTIKHSPOTPROFILE}|%{MIKROTIKHSPOTLOGINFAIL}|%{MIKROTIKHSPOTLOGIN2}
+MIKROTIKSYSTEM %{MIKROTIKSNTPCHANGE}|%{MIKROTIKDHCPLEASEREMOVED}|%{MIKROTIKDHCPLEASEADDED}
 
-MTIKLOGIN (?:%{MIKROTIKLOGINOUT}|%{MIKROTIKLOGINFAIL}|%{MIKROTIKRULECHANGE})
+# SNMP
+MIKROTIKSNMPPACKET ^packet\(v%{INT:[mikrotik][snmp][version]}\) from: %{IP:[source][ip]} community: %{WORD:[mikrotik][snmp][community]}$
+MIKROTIKSNMPDEBUGGET ^get %{DATA:[mikrotik][snmp][oid]}$
+MIKROTIKSNMPDEBUGOID ^oid >%{DATA:[mikrotik][snmp][oid_value]}<$
+MIKROTIKSNMPDEBUGGROUPING ^grouping OIDs$
 
-#### WIRELESS
+# SSTP (Secure Socket Tunneling Protocol)
+MIKROTIKSSTPPACKETSENT ^<%{DATA:[mikrotik][sstp][packet_data]}> sent control packet type: %{DATA:[mikrotik][sstp][packet_type]}$
+MIKROTIKSSTPPACKETRECV ^<%{DATA:[mikrotik][sstp][packet_data]}> recv control packet type: %{DATA:[mikrotik][sstp][packet_type]}$
+MIKROTIKSSTPPPPDEBUG ^: %{DATA:[mikrotik][sstp][ppp_action]}$
 
-MTIKWIFIASSOC   %{USER:src_int}: %{MAC:src_mac} attempts to %{USER:action}
-MTIKWIFIACL     %{USER:src_int}: %{MAC:src_mac} (?<action>not in local ACL), by default %{USER:action_result}
-MTIKWIFIDEAUTH  %{USER:src_int}: %{DATA:greed} %{MAC:src_mac}, sent %{USER:action}
-MTIKWIFICONN    %{MAC:src_mac}\@%{USER:src_int}: (?<action>connected)$
-MTIKWIFIDISCONN %{MAC:src_mac}\@%{USER:src_int}: %{USER:action}, %{USER:action_result}$
-MTIKWIFIDISCON2 %{MAC:src_mac}\@%{USER:src_int}: (?<action>disconnected), received %{WORD:reason}%{GREEDYDATA:crap}$
-MTIKWIFIWDSAP   %{MAC:src_mac}\@%{USER:src_int}: (?<action>connected), is %{USER:wifi_type}, wants %{USER:wifi_req}
-MTIKWIFIBRSET   %{USER:interface}: %{USER:action_result} to %{DATA:action} for %{USER}, reason: %{DATA:reason}
-MTIKWIFIINTEVE  ^(?<action>Interface change) interface=%{USER:src_int} %{DATA:status}
+# EXTENDED DNS
+MIKROTIKDNSLOCAL local query: #%{INT} %{DATA:[dns][query][name]}\. %{WORD:[dns][query][type_name]}$
+MIKROTIKDNSNOTEXIST done query: #%{INT} (?<[event_data][reason]>dns name does not exist)
+MIKROTIKDNSDONE done query: #%{INT} %{DATA:[dns][query][name]} %{IPORHOST:[dns][answer][name]}
+MIKROTIKDNSPACKETOUT ^--- sending udp query to %{IP:[mikrotik][dns][server_ip]}:%{INT:[mikrotik][dns][server_port]}:$
+MIKROTIKDNSPACKETIN ^--- got answer from %{IP:[mikrotik][dns][server_ip]}:%{INT:[mikrotik][dns][server_port]}:$
+MIKROTIKDNSPACKETMETA ^id:%{WORD:[mikrotik][dns][packet_id]} rd:%{INT:[mikrotik][dns][rd]} tc:%{INT:[mikrotik][dns][tc]} aa:%{INT:[mikrotik][dns][aa]} qr:%{INT:[mikrotik][dns][qr]} ra:%{INT:[mikrotik][dns][ra]} %{WORD:[mikrotik][dns][query_type]} '%{DATA:[mikrotik][dns][response_status]}'$
+MIKROTIKDNSPACKETQUESTION ^question: %{DATA:[mikrotik][dns][question]}$
+MIKROTIKDNSPACKETANSWER ^answer:$
+MIKROTIKDNSPACKETDATA ^<%{DATA:[mikrotik][dns][packet_data]}>$
 
-MTIKWIFI (?:%{MTIKWIFIDISCON2}|%{MTIKWIFIDISCONN}|%{MTIKWIFICONN}|%{MTIKWIFIWDSAP}|%{MTIKWIFIASSOC}|%{MTIKWIFIACL}|%{MTIKWIFIDEAUTH}|%{MTIKWIFIBRSET}|%{MTIKWIFIINTEVE})
+# IPSEC
+MIKROTIKIPSECREQUEST ^<- ike2 request, exchange: %{DATA:[mikrotik][ipsec][exchange_info]}$
+MIKROTIKIPSECREPLY ^<- ike2 reply, exchange: %{DATA:[mikrotik][ipsec][exchange_info]}$
+MIKROTIKIPSECPAYLOAD ^payload seen: %{DATA:[mikrotik][ipsec][payload_info]}$
+MIKROTIKIPSECSENDING ^sending dpd packet$
+MIKROTIKIPSECRESPOND ^respond: %{WORD:[mikrotik][ipsec][response_type]}$
 
-##### HOTSPOT
+# MIKROTIK USER & GROUP MANAGEMENT
+MIKROTIKUSERMGMT ^user %{USERNAME:[target][user][name]} (?<[event][name]>added|changed|removed|password changed) by %{USERNAME:[source][user][name]}$
+MIKROTIKUSERMGMT2 %{USERNAME:[target][user][name]} (?<[event][name]>added|changed|removed|password changed) by %{USERNAME:[source][user][name]}$
+MIKROTIKGROUPMGMT ^user group %{DATA:[target][group][name]} (?<[event][name]>added|changed|removed) by %{USERNAME:[source][user][name]}$
+MIKROTIKMNG %{MIKROTIKUSERMGMT}|%{MIKROTIKUSERMGMT2}|%{MIKROTIKGROUPMGMT}
 
-MTIKHSPOTSTART       ^(?<user>T\-%{MAC:src_mac}|%{USERNAME})%{SPACE}\(%{IP:src_ip}\)\:
-MTIKHSPOTNEWHOST     ^%{USERNAME:src_int}\:%{SPACE}(?<action>new host detected)%{SPACE}%{MAC:src_mac}\/%{IP:src_ip}%{SPACE}by%{SPACE}%{WORD:protocol}%{SPACE}\:%{NUMBER:src_port:int} \-\> %{IP:dst_ip}\:%{NUMBER:dst_port:int}$
-MTIKHSPOTLOGINMETHOD ^(?<user_id>T\-%{MAC:src_mac}|%{USERNAME})%{SPACE}\(%{IP:src_ip}\)\:%{SPACE}(?<action>trying to log in) by %{USERNAME:login_method}$
-MTIKHSPOTLOGIN       ^(?<user_id>T\-%{MAC:src_mac}|%{USERNAME})%{SPACE}\(%{IP:src_ip}\)\:%{SPACE}(?<action>%{USER}%{SPACE}%{WORD})$
-MTIKHSPOTLOGIN2      ^(?<user_id>T\-%{MAC:src_mac}|%{USERNAME})%{SPACE}\(%{IP:src_ip}\)\:%{SPACE}(?<action>%{USER}%{SPACE}%{WORD:action_result})(?:\->|\:)%{SPACE}?%{GREEDYDATA:reason}$
-MTIKHSPOTLOGINFAIL   ^(?<user_id>T\-%{MAC:src_mac}|%{USERNAME})%{SPACE}\(%{IP:src_ip}\)\:%{SPACE}(?<action>login failed)\:%{SPACE}?%{GREEDYDATA:reason}
-MTIKHSPOTPROFILE     ^(?<user_id>T\-%{MAC:src_mac}|%{USERNAME})%{SPACE}\(%{IP:src_ip}\)\:%{SPACE}(?<action>using profile)%{SPACE}?\<?%{USERNAME:ip_profile}?\>?$
-MTIKHSPOTQUEUE       ^(?<user_id>T\-%{MAC:src_mac}|%{USERNAME})%{SPACE}\(%{IP:src_ip}\)\:%{SPACE}(?<action>(?:adding|removing) queue)%{SPACE}?\<%{GREEDYDATA:user_queue}\>$
-MTIKHSPOTQUEUE2      ^(?<user_id>T\-%{MAC:src_mac}|%{USERNAME})%{SPACE}\(%{IP:src_ip}\)\:%{SPACE}(?<action>(?:removing) queue)$
-MTIKHSPOTIPPOOL      ^(?<user_id>T\-%{MAC:src_mac}|%{USERNAME})%{SPACE}\(%{IP:src_ip}\)\:%{SPACE}(?<action>getting ip address)%{SPACE}(?<crap>from pool)$
+# Combined patterns
+MIKROTIKSNMP %{MIKROTIKSNMPPACKET}|%{MIKROTIKSNMPDEBUGGET}|%{MIKROTIKSNMPDEBUGOID}|%{MIKROTIKSNMPDEBUGGROUPING}
+MIKROTIKSSTP %{MIKROTIKSSTPPACKETSENT}|%{MIKROTIKSSTPPACKETRECV}|%{MIKROTIKSSTPPPPDEBUG}
+MIKROTIKDNSEXT %{MIKROTIKDNSLOCAL}|%{MIKROTIKDNSNOTEXIST}|%{MIKROTIKDNSDONE}|%{MIKROTIKDNSPACKETOUT}|%{MIKROTIKDNSPACKETIN}|%{MIKROTIKDNSPACKETMETA}|%{MIKROTIKDNSPACKETQUESTION}|%{MIKROTIKDNSPACKETANSWER}|%{MIKROTIKDNSPACKETDATA}
+MIKROTIKIPSEC %{MIKROTIKIPSECREQUEST}|%{MIKROTIKIPSECREPLY}|%{MIKROTIKIPSECPAYLOAD}|%{MIKROTIKIPSECSENDING}|%{MIKROTIKIPSECRESPOND}
+MIKROTIKFIREWALLEXT %{MIKROTIKFIREWALLMODMACH}
 
-MTIKHSPOT (?:%{MTIKHSPOTLOGINMETHOD}|%{MTIKHSPOTIPPOOL}|%{MTIKHSPOTLOGIN}|%{MTIKHSPOTNEWHOST}|%{MTIKHSPOTPROFILE}|{MTIKHOTSPOTQUEUE2}|{MTIKHOTSPOTQUEUE}|%{MTIKHSPOTLOGINFAIL}|%{MTIKHSPOTLOGIN2})
-
-
-# Add all the above
-MIKROTIKMSGS (?:%{MIKROTIKDHCP}|%{MTIKHSPOT}|%{MTIKWIFI}|%{MTIKLOGIN})
+MIKROTIKMSGS %{MIKROTIKLOGIN}|%{MIKROTIKMNG}|%{MIKROTIKWEBPROXY}|%{MIKROTIKWEBPROXY2}|%{MIKROTIKINTERFACE}|%{MIKROTIKDHCP}|%{MIKROTIKDNS}|%{MIKROTIKDNSEXT}|%{MTIKWIFI}|%{MIKROTIKFIREWALLEXT}|%{MIKROTIKFIREWALL}|%{MIKROTIKSYSTEM}|%{MIKROTIKSNMP}|%{MIKROTIKSSTP}|%{MIKROTIKIPSEC}
